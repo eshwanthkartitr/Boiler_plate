@@ -1,0 +1,10 @@
+name: GPUClusterEnv
+version: 1.0.0
+description: A real-world cloud infrastructure environment where agents manage GPU provisioning to handle ML training workloads under strict budget constraints.
+endpoints:
+  reset: /reset
+  step: /step
+  state: /state
+  baseline: /baseline
+  grader: /grader
+  tasks: /tasks

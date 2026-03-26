@@ -1,0 +1,9 @@
+gradio
+torch
+numpy
+gymnasium
+fastapi
+uvicorn
+pydantic
+numpy
+requests
