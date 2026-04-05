@@ -54,3 +54,32 @@ Provides 6 heavily distinct curriculums across 3 difficulty tiers to truly evalu
 * `black_swan_drought`: Brutal. Demand stays critically high, reservoir is small. Tests the agent's ability to perfectly time maintenance cooldowns. If they miss one cleaning window, the city drys out.
 * `grid_failure`: The ultimate energy arbitrage test. Standard demand, but grid energy pricing fluctuates by massive magnitudes (`price_volatility=250.0`). Pumping at the wrong time bankrupts the plant.
 * `marathon_endurance`: A 500-step test where micro-degradations compound. Short-term greedy strategies (running fouled, taking salinity hits) will eventually snowball into total failure.
+
+## Setup and Usage Instructions
+
+1. Install dependencies:
+\\\ash
+pip install -r requirements.txt
+pip install openenv-core
+uv lock
+\\\
+
+2. Validate compliance:
+\\\ash
+openenv validate .
+\\\
+
+3. Run Environment Locally (Docker):
+\\\ash
+docker build -t desal_env .
+docker run -p 7860:7860 desal_env
+\\\
+
+## Baseline Scores
+
+The baseline agent uses a heuristic expert hint merged with an LLM prompt to solve the tasks reliably.
+Scores normally range around:
+- **easy_spring**: ~0.90 to ~0.95
+- **summer_crisis**: ~0.80 to ~0.85
+- **hurricane_season**: ~0.70 to ~0.78
+

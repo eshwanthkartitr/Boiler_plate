@@ -1,9 +1,8 @@
-gradio
-torch
-numpy
-gymnasium
 fastapi
 uvicorn
 pydantic
 numpy
 requests
+openai
+openenv-core>=0.2.2
+uv

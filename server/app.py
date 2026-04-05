@@ -50,3 +50,10 @@ def grader():
 def run_baseline():
     result = subprocess.run(["python", "src/baseline.py"], capture_output=True, text=True)
     return {"output": result.stdout}
+
+def main():
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
+
+if __name__ == "__main__":
+    main()
