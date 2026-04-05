@@ -1,8 +1,8 @@
 ---
 title: Desalination RL Protocol
 emoji: 🌊
-colorFrom: cyan
-colorTo: blue
+colorFrom: blue
+colorTo: indigo
 sdk: docker
 pinned: false
 ---
