@@ -6,7 +6,10 @@ def write_file(path, content):
 
 models_py = """
 from pydantic import BaseModel, Field
-from typing import Dict, Literal, List
+from typing import Dict, Literal, List, Optional
+
+class ResetRequest(BaseModel):
+    task_id: str = "easy_spring"
 
 class Observation(BaseModel):
     time_step: int
@@ -184,8 +187,9 @@ TASKS = {
 """
 
 main_py = """
-from fastapi import FastAPI, HTTPException
-from src.models import Action, TaskConfig
+from fastapi import FastAPI, HTTPException, Body
+from typing import Optional
+from src.models import Action, TaskConfig, ResetRequest
 from src.env import DesalEnv
 from src.tasks import TASKS
 import subprocess
@@ -198,7 +202,11 @@ def health_check():
     return {"status": "ok", "message": "Advanced DesalEnv is running", "features": ["weather", "salinity", "mechanics"]}
 
 @app.post("/reset")
-def reset_env(task_id: str = "easy_spring"):
+def reset_env(task_id: str = "easy_spring", req: Optional[ResetRequest] = None):
+    # Support both GET query params and POST JSON body for task_id
+    if req and req.task_id != "easy_spring":
+        task_id = req.task_id
+        
     if task_id not in TASKS:
         raise HTTPException(status_code=404, detail="Task not found")
     obs = env.reset(TASKS[task_id])
@@ -225,11 +233,11 @@ def list_tasks():
 @app.get("/grader")
 def grader():
     if env.state is None:
-        return {"score": 0.0}
+        return {"score": 0.001}
     # Grade relative to typical maximum and minimum returns to generate a 0.0-1.0 range
     baseline_offset = env.config.max_steps * 1000.0 # Compensate for penalties
     scale_factor = env.config.max_steps * 1500.0 
-    score = max(0.0, min(1.0, (env.total_reward + baseline_offset) / scale_factor))
+    score = max(0.001, min(0.999, (env.total_reward + baseline_offset) / scale_factor))
     return {"score": score}
 
 @app.post("/baseline")

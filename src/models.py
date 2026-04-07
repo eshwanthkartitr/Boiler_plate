@@ -1,5 +1,8 @@
 from pydantic import BaseModel, Field
-from typing import Dict, Literal, List
+from typing import Dict, Literal, List, Optional
+
+class ResetRequest(BaseModel):
+    task_id: str = "easy_spring"
 
 class Observation(BaseModel):
     time_step: int
