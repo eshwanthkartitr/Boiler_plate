@@ -2,25 +2,12 @@ import os
 import json
 import re
 import requests
-from openai import OpenAI
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or "dummy_key"
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-3.5-turbo")
 
 ENV_BASE_URL = "http://localhost:7860"
-
-# Initialize OpenAI client
-client = None
-if API_BASE_URL and API_KEY:
-    client = OpenAI(
-        base_url=API_BASE_URL,
-        api_key=API_KEY
-    )
-elif API_KEY:
-    client = OpenAI(api_key=API_KEY)
-else:
-    client = OpenAI(api_key="dummy_key")
 
 SYSTEM_PROMPT = """You are an elite AI agent controlling an industrial reverse-osmosis desalination plant.
 Your objective: Manage the trade-offs of fresh water production against energy costs and membrane degradation, while ensuring water_salinity NEVER exceeds 450 PPM and reservoir NEVER dries out.
@@ -134,16 +121,22 @@ def evaluate_baseline(task_id):
         
         error_msg = "null"
         try:
-            response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
+            headers = {
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": MODEL_NAME,
+                "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.0,
-                max_tokens=150
-            )
-            llm_content = response.choices[0].message.content
+                "temperature": 0.0,
+                "max_tokens": 150
+            }
+            response = requests.post(f"{API_BASE_URL.rstrip('/')}/chat/completions", headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            llm_content = response.json()["choices"][0]["message"]["content"]
             action = parse_action(llm_content)
         except Exception as e:
             error_msg = f"'{str(e)}'"
