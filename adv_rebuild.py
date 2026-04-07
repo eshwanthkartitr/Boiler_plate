@@ -237,7 +237,21 @@ def grader():
     # Grade relative to typical maximum and minimum returns to generate a 0.0-1.0 range
     baseline_offset = env.config.max_steps * 1000.0 # Compensate for penalties
     scale_factor = env.config.max_steps * 1500.0 
-    score = max(0.001, min(0.999, (env.total_reward + baseline_offset) / scale_factor))
+    try:
+        raw_score = float(env.total_reward + baseline_offset) / scale_factor
+        import math
+        if math.isnan(raw_score):
+            score = 0.001
+        else:
+            score = float(max(0.001, min(0.999, raw_score)))
+    except:
+        score = 0.001
+        
+    if score >= 1.0:
+        score = 0.999
+    elif score <= 0.0:
+        score = 0.001
+        
     return {"score": score}
 
 @app.post("/baseline")
