@@ -5,3 +5,7 @@ venv/
 __pycache__/
 .git.old/
 models/mlx/
+outputs/**/checkpoint-*/**/*.safetensors
+outputs/**/checkpoint-*/**/*.pt
+outputs/**/checkpoint-*/**/*.pth
+outputs/**/checkpoint-*/**/*.bin

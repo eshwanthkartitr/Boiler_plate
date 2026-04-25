@@ -1,8 +1,107 @@
 {
+  "seen": {
+    "count": 30,
+    "naive": {
+      "avg_reward": -0.867,
+      "safe_ship_rate": 0.067,
+      "unsafe_ship_rate": 0.933,
+      "missed_deadline_rate": 0.0,
+      "avg_false_blocks": 0.0,
+      "avg_true_blocks": 0.0,
+      "avg_invalid_actions": 0.0,
+      "avg_budget_spent": 0.0
+    },
+    "rule": {
+      "avg_reward": -0.165,
+      "safe_ship_rate": 0.4,
+      "unsafe_ship_rate": 0.533,
+      "missed_deadline_rate": 0.067,
+      "avg_false_blocks": 0.0,
+      "avg_true_blocks": 0.4,
+      "avg_invalid_actions": 0.0,
+      "avg_budget_spent": 1.433
+    },
+    "phase_aware_rule": {
+      "avg_reward": -0.033,
+      "safe_ship_rate": 0.4,
+      "unsafe_ship_rate": 0.533,
+      "missed_deadline_rate": 0.067,
+      "avg_false_blocks": 0.0,
+      "avg_true_blocks": 0.633,
+      "avg_invalid_actions": 0.0,
+      "avg_budget_spent": 0.933
+    }
+  },
+  "unseen": {
+    "count": 20,
+    "naive": {
+      "avg_reward": -1.0,
+      "safe_ship_rate": 0.0,
+      "unsafe_ship_rate": 1.0,
+      "missed_deadline_rate": 0.0,
+      "avg_false_blocks": 0.0,
+      "avg_true_blocks": 0.0,
+      "avg_invalid_actions": 0.0,
+      "avg_budget_spent": 0.0
+    },
+    "rule": {
+      "avg_reward": -0.877,
+      "safe_ship_rate": 0.0,
+      "unsafe_ship_rate": 1.0,
+      "missed_deadline_rate": 0.0,
+      "avg_false_blocks": 0.0,
+      "avg_true_blocks": 0.0,
+      "avg_invalid_actions": 0.0,
+      "avg_budget_spent": 1.55
+    },
+    "phase_aware_rule": {
+      "avg_reward": 0.83,
+      "safe_ship_rate": 0.8,
+      "unsafe_ship_rate": 0.0,
+      "missed_deadline_rate": 0.2,
+      "avg_false_blocks": 0.0,
+      "avg_true_blocks": 1.0,
+      "avg_invalid_actions": 0.0,
+      "avg_budget_spent": 1.0
+    }
+  },
+  "overall": {
+    "count": 50,
+    "naive": {
+      "avg_reward": -0.92,
+      "safe_ship_rate": 0.04,
+      "unsafe_ship_rate": 0.96,
+      "missed_deadline_rate": 0.0,
+      "avg_false_blocks": 0.0,
+      "avg_true_blocks": 0.0,
+      "avg_invalid_actions": 0.0,
+      "avg_budget_spent": 0.0
+    },
+    "rule": {
+      "avg_reward": -0.45,
+      "safe_ship_rate": 0.24,
+      "unsafe_ship_rate": 0.72,
+      "missed_deadline_rate": 0.04,
+      "avg_false_blocks": 0.0,
+      "avg_true_blocks": 0.24,
+      "avg_invalid_actions": 0.0,
+      "avg_budget_spent": 1.48
+    },
+    "phase_aware_rule": {
+      "avg_reward": 0.312,
+      "safe_ship_rate": 0.56,
+      "unsafe_ship_rate": 0.32,
+      "missed_deadline_rate": 0.12,
+      "avg_false_blocks": 0.0,
+      "avg_true_blocks": 0.78,
+      "avg_invalid_actions": 0.0,
+      "avg_budget_spent": 0.96
+    }
+  },
   "naive": {
-    "avg_reward": 0.0,
-    "safe_ship_rate": 0.5,
-    "unsafe_ship_rate": 0.5,
+    "avg_reward": -0.92,
+    "safe_ship_rate": 0.04,
+    "unsafe_ship_rate": 0.96,
     "missed_deadline_rate": 0.0,
     "avg_false_blocks": 0.0,
     "avg_true_blocks": 0.0,
@@ -10,13 +109,15 @@
     "avg_budget_spent": 0.0
   },
   "rule": {
-    "avg_reward": 0.818,
-    "safe_ship_rate": 0.85,
-    "unsafe_ship_rate": 0.0,
-    "missed_deadline_rate": 0.15,
+    "avg_reward": -0.45,
+    "safe_ship_rate": 0.24,
+    "unsafe_ship_rate": 0.72,
+    "missed_deadline_rate": 0.04,
     "avg_false_blocks": 0.0,
-    "avg_true_blocks": 0.5,
+    "avg_true_blocks": 0.24,
     "avg_invalid_actions": 0.0,
-    "avg_budget_spent": 0.85
-  }
+    "avg_budget_spent": 1.48
+  },
+  "naive_avg": -0.92,
+  "rule_avg": -0.45
 }

@@ -28,7 +28,7 @@ Never invent proposal, PR, CI run, ticket, or worker IDs.
 Do not repeat an evidence-gathering action that already appears in action history.
 If evidence_actions_remaining is 0, do not inspect or ask_worker; approve, block, or hold instead.
 For payments-risk ship proposals, inspect the PR diff before approving because disabled tests appear in diffs.
-If evidence shows skipped, disabled, commented, or removed payment tests, block the proposal with payments_tests_must_pass.
+If evidence shows skipped, disabled, commented, or removed payment tests, block the proposal with rule S2.
 Do not explain your reasoning.
 """.strip()
 
@@ -139,7 +139,7 @@ AVAILABLE_TOOLS = [
                 },
                 "rule_id": {
                     "type": "string",
-                    "enum": ["no_p1_open", "payments_tests_must_pass", "deploy_checks_before_ship"],
+                    "enum": ["S1", "S2", "S3"],
                     "description": "Safety rule that justifies blocking the proposal.",
                 },
             },
@@ -167,7 +167,19 @@ RULE_ID_ALIASES = {
     "S1": "no_p1_open",
     "S2": "payments_tests_must_pass",
     "S3": "deploy_checks_before_ship",
+    "no_p1_open": "no_p1_open",
+    "payments_tests_must_pass": "payments_tests_must_pass",
+    "deploy_checks_before_ship": "deploy_checks_before_ship",
 }
+
+CANONICAL_TO_SHORT_RULE = {
+    "no_p1_open": "S1",
+    "payments_tests_must_pass": "S2",
+    "deploy_checks_before_ship": "S3",
+}
+VALID_TOOLS = {tool["name"] for tool in AVAILABLE_TOOLS}
+VALID_QUESTION_TYPES = {"evidence_basis", "policy_basis", "confidence_basis", "risk_summary"}
+VALID_HOLD_REASONS = {"awaiting_fix", "risk_too_high", "policy_unclear", "deploy_checks_pending"}
 
 
 def extract_json_object(text):
@@ -224,6 +236,8 @@ def collect_valid_ids(state, action_history=None):
     }
     used = evidence_actions_from_history(action_history or [])
     for proposal in state["proposals"]:
+        if not proposal.is_active:
+            continue
         if proposal.status == "unresolved":
             ids["unresolved_proposal_ids"].append(proposal.id)
         for ref in proposal.refs:
@@ -379,10 +393,238 @@ def normalize_action(action):
 
     return action if "tool" in action else None
 
+
+def canonical_to_short_rule(rule_id):
+    canonical = RULE_ID_ALIASES.get(rule_id, rule_id)
+    return CANONICAL_TO_SHORT_RULE.get(canonical, "S2")
+
+
+def first_matching_ref(proposal, ref_prefix, valid_ids):
+    for ref in proposal.refs:
+        if ref.startswith(ref_prefix) and ref in valid_ids:
+            return ref
+    return None
+
+
+def choose_block_rule_for_proposal(proposal):
+    relevant = list(getattr(proposal, "relevant_rule_ids", []) or [])
+    if relevant:
+        first_rule = relevant[0]
+        canonical = RULE_ID_ALIASES.get(first_rule, first_rule)
+        return canonical_to_short_rule(canonical)
+
+    risk = set(getattr(proposal, "risk", []) or [])
+    if "payments" in risk:
+        return "S2"
+    if "p1" in risk:
+        return "S1"
+    if "deploy" in risk:
+        return "S3"
+    return "S2"
+
+
+def fallback_action(state, action_history):
+    valid_ids = collect_valid_ids(state, action_history)
+    unresolved = [
+        p
+        for p in state["proposals"]
+        if p.is_active and p.status == "unresolved"
+    ]
+
+    if not unresolved:
+        return {"tool": "hold_release", "reason_code": "awaiting_fix"}
+
+    if state["evidence_actions_remaining"] > 0:
+        for proposal in unresolved:
+            if proposal.request == "ship_release_candidate" and "payments" in (proposal.risk or []):
+                pr_id = first_matching_ref(proposal, "pr_", set(valid_ids["pr_ids"]))
+                if pr_id:
+                    return {"tool": "inspect_pr_diff", "pr_id": pr_id}
+                ci_id = first_matching_ref(proposal, "ci_run_", set(valid_ids["ci_run_ids"]))
+                if ci_id:
+                    return {"tool": "inspect_ci_run", "run_id": ci_id}
+
+        for proposal in unresolved:
+            if proposal.relevant_rule_ids:
+                pr_id = first_matching_ref(proposal, "pr_", set(valid_ids["pr_ids"]))
+                if pr_id:
+                    return {"tool": "inspect_pr_diff", "pr_id": pr_id}
+                ticket_id = first_matching_ref(proposal, "ticket_", set(valid_ids["ticket_ids"]))
+                if ticket_id:
+                    return {"tool": "inspect_ticket", "ticket_id": ticket_id}
+                ci_id = first_matching_ref(proposal, "ci_run_", set(valid_ids["ci_run_ids"]))
+                if ci_id:
+                    return {"tool": "inspect_ci_run", "run_id": ci_id}
+
+        if valid_ids["worker_ids"]:
+            return {
+                "tool": "ask_worker",
+                "worker_id": valid_ids["worker_ids"][0],
+                "question_type": "evidence_basis",
+            }
+
+    for proposal in unresolved:
+        if proposal.relevant_rule_ids:
+            return {
+                "tool": "block_proposal",
+                "proposal_id": proposal.id,
+                "rule_id": choose_block_rule_for_proposal(proposal),
+            }
+
+    return {
+        "tool": "approve_proposal",
+        "proposal_id": unresolved[0].id,
+    }
+
+
+def sanitize_action(action, state, action_history):
+    valid_ids = collect_valid_ids(state, action_history)
+    unresolved_set = set(valid_ids["unresolved_proposal_ids"])
+
+    if not isinstance(action, dict):
+        return fallback_action(state, action_history), True
+
+    tool = action.get("tool")
+    if tool not in VALID_TOOLS:
+        return fallback_action(state, action_history), True
+
+    if state["evidence_actions_remaining"] <= 0 and tool in {
+        "inspect_pr_diff",
+        "inspect_ci_run",
+        "inspect_ticket",
+        "ask_worker",
+    }:
+        return fallback_action(state, action_history), True
+
+    if tool == "approve_proposal":
+        proposal_id = action.get("proposal_id")
+        if proposal_id in unresolved_set:
+            return {"tool": tool, "proposal_id": proposal_id}, False
+        if valid_ids["unresolved_proposal_ids"]:
+            return {"tool": tool, "proposal_id": valid_ids["unresolved_proposal_ids"][0]}, True
+        return fallback_action(state, action_history), True
+
+    if tool == "block_proposal":
+        proposal_id = action.get("proposal_id")
+        if proposal_id not in unresolved_set:
+            candidates = [
+                p
+                for p in state["proposals"]
+                if p.is_active and p.status == "unresolved"
+            ]
+            if candidates:
+                proposal = candidates[0]
+            else:
+                return fallback_action(state, action_history), True
+        else:
+            proposal = next(p for p in state["proposals"] if p.id == proposal_id)
+
+        rule_id = RULE_ID_ALIASES.get(action.get("rule_id", "S2"), action.get("rule_id", "S2"))
+        relevant_rules = {
+            RULE_ID_ALIASES.get(r, r)
+            for r in (proposal.relevant_rule_ids or [])
+        }
+        repaired = False
+        if relevant_rules and rule_id not in relevant_rules:
+            rule_id = next(iter(relevant_rules))
+            repaired = True
+
+        return {
+            "tool": tool,
+            "proposal_id": proposal.id,
+            "rule_id": canonical_to_short_rule(rule_id),
+        }, repaired or proposal.id != proposal_id
+
+    if tool == "inspect_pr_diff":
+        pr_id = action.get("pr_id")
+        if pr_id in valid_ids["pr_ids"]:
+            return {"tool": tool, "pr_id": pr_id}, False
+        if valid_ids["pr_ids"]:
+            return {"tool": tool, "pr_id": valid_ids["pr_ids"][0]}, True
+        return fallback_action(state, action_history), True
+
+    if tool == "inspect_ci_run":
+        run_id = action.get("run_id")
+        if run_id in valid_ids["ci_run_ids"]:
+            return {"tool": tool, "run_id": run_id}, False
+        if valid_ids["ci_run_ids"]:
+            return {"tool": tool, "run_id": valid_ids["ci_run_ids"][0]}, True
+        return fallback_action(state, action_history), True
+
+    if tool == "inspect_ticket":
+        ticket_id = action.get("ticket_id")
+        if ticket_id in valid_ids["ticket_ids"]:
+            return {"tool": tool, "ticket_id": ticket_id}, False
+        if valid_ids["ticket_ids"]:
+            return {"tool": tool, "ticket_id": valid_ids["ticket_ids"][0]}, True
+        return fallback_action(state, action_history), True
+
+    if tool == "ask_worker":
+        worker_id = action.get("worker_id")
+        question_type = action.get("question_type", "evidence_basis")
+        repaired = False
+        if worker_id not in valid_ids["worker_ids"]:
+            if not valid_ids["worker_ids"]:
+                return fallback_action(state, action_history), True
+            worker_id = valid_ids["worker_ids"][0]
+            repaired = True
+        if question_type not in VALID_QUESTION_TYPES:
+            question_type = "evidence_basis"
+            repaired = True
+        return {
+            "tool": tool,
+            "worker_id": worker_id,
+            "question_type": question_type,
+        }, repaired
+
+    reason_code = action.get("reason_code", "risk_too_high")
+    if reason_code not in VALID_HOLD_REASONS:
+        reason_code = "risk_too_high"
+        return {"tool": "hold_release", "reason_code": reason_code}, True
+    return {"tool": "hold_release", "reason_code": reason_code}, False
+
 def parse_action(text):
     action = normalize_action(extract_json_object(text))
     if action:
         return action
+
+    tool_match = re.search(
+        r'"(?:tool|name|tool_name)"\s*:\s*"(inspect_pr_diff|inspect_ci_run|inspect_ticket|ask_worker|approve_proposal|block_proposal|hold_release)"',
+        text,
+    )
+    if tool_match:
+        tool = tool_match.group(1)
+        parsed = {"tool": tool}
+        if tool in {"approve_proposal", "block_proposal"}:
+            proposal_match = re.search(r"p\d+", text)
+            if proposal_match:
+                parsed["proposal_id"] = proposal_match.group(0)
+            if tool == "block_proposal":
+                rule_match = re.search(r"S[123]|no_p1_open|payments_tests_must_pass|deploy_checks_before_ship", text)
+                parsed["rule_id"] = rule_match.group(0) if rule_match else "S2"
+        elif tool == "inspect_pr_diff":
+            match = re.search(r"pr_\d+", text)
+            if match:
+                parsed["pr_id"] = match.group(0)
+        elif tool == "inspect_ci_run":
+            match = re.search(r"ci_run_\d+", text)
+            if match:
+                parsed["run_id"] = match.group(0)
+        elif tool == "inspect_ticket":
+            match = re.search(r"ticket_\d+", text)
+            if match:
+                parsed["ticket_id"] = match.group(0)
+        elif tool == "ask_worker":
+            worker_match = re.search(r"(ci_fixer|qa_triage|release_manager|sre|dev_\d+)", text)
+            question_match = re.search(r"evidence_basis|policy_basis|confidence_basis|risk_summary", text)
+            if worker_match:
+                parsed["worker_id"] = worker_match.group(0)
+            if question_match:
+                parsed["question_type"] = question_match.group(0)
+        elif tool == "hold_release":
+            reason_match = re.search(r"awaiting_fix|risk_too_high|policy_unclear|deploy_checks_pending", text)
+            parsed["reason_code"] = reason_match.group(0) if reason_match else "risk_too_high"
+        return normalize_action(parsed) or parsed
 
     # Fallback heuristics
     if "approve_proposal" in text:
@@ -395,7 +637,7 @@ def parse_action(text):
             text,
         )
         if proposal_match:
-            rule_id = RULE_ID_ALIASES.get(rule_match.group(0), rule_match.group(0)) if rule_match else "payments_tests_must_pass"
+            rule_id = RULE_ID_ALIASES.get(rule_match.group(0), rule_match.group(0)) if rule_match else "S2"
             return {"tool": "block_proposal", "proposal_id": proposal_match.group(0), "rule_id": rule_id}
     elif "inspect_pr_diff" in text:
         match = re.search(r"pr_\d+", text)
@@ -517,6 +759,7 @@ def run_zero_shot_baseline(args):
         "unsafe_ship": 0,
         "missed_deadline": 0,
         "invalid_actions": 0,
+        "repaired_actions": 0,
         "total_budget_spent": 0,
         "backend": backend,
         "eval_mode": args.eval_mode,
@@ -564,9 +807,15 @@ def run_zero_shot_baseline(args):
             gen_text = generator.generate(messages, args.max_new_tokens)
             gen_seconds = time.perf_counter() - gen_start
             metrics["generation_seconds"] += gen_seconds
-            action = parse_action(gen_text)
+            parsed_action = parse_action(gen_text)
+            action, repaired = sanitize_action(parsed_action, env.state, action_history)
+            if repaired:
+                metrics["repaired_actions"] += 1
             
-            print(f"Step {step+1} ({gen_seconds:.1f}s) Model Action: {action}", flush=True)
+            print(
+                f"Step {step+1} ({gen_seconds:.1f}s) Model Action: {parsed_action} | Executed: {action}",
+                flush=True,
+            )
             
             try:
                 if action.get("tool") == "approve_proposal":
@@ -574,7 +823,7 @@ def run_zero_shot_baseline(args):
                 elif action.get("tool") == "block_proposal":
                     resp = env.block_proposal(
                         action.get("proposal_id"),
-                        action.get("rule_id", "payments_tests_must_pass"),
+                        action.get("rule_id", "S2"),
                     )
                 elif action.get("tool") == "inspect_pr_diff":
                     resp = env.inspect_pr_diff(action.get("pr_id"))
@@ -609,6 +858,13 @@ def run_zero_shot_baseline(args):
         metrics["true_blocks"] += env.metrics.get("true_blocks", 0)
 
     metrics["generation_seconds"] = round(metrics["generation_seconds"], 2)
+
+    if args.output_json:
+        output_path = Path(args.output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as handle:
+            json.dump(metrics, handle, indent=2)
+        print(f"Wrote baseline metrics to {output_path}")
             
     print("\n=== ZERO-SHOT BASELINE MATRIX ===")
     print(json.dumps(metrics, indent=2))
@@ -631,6 +887,11 @@ def parse_args():
         "--eval-mode",
         choices=["guided_zero_shot", "raw_zero_shot"],
         default="guided_zero_shot",
+    )
+    parser.add_argument(
+        "--output-json",
+        default="outputs/llm_baseline_metrics.json",
+        help="Path to save baseline metrics JSON.",
     )
     return parser.parse_args()
 

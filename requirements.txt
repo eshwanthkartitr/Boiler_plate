@@ -1,7 +1,9 @@
 pydantic
 fastapi
 uvicorn
-trl
+requests
+openenv-core[core]>=0.2.1
+trl @ git+https://github.com/huggingface/trl.git
 pytest
 datasets
 matplotlib
