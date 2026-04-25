@@ -1,6 +1,19 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Literal, Dict, Any
 
+
+class ReleaseOpsAction(BaseModel):
+    tool: str
+    arguments: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ReleaseOpsObservation(BaseModel):
+    observation: Dict[str, Any] = Field(default_factory=dict)
+    result: Optional[Any] = None
+    reward: float = 0.0
+    done: bool = False
+    terminal_reason: Optional[str] = None
+
 class SystemState(BaseModel):
     phase: str
     phase_index: int

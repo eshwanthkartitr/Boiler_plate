@@ -1,0 +1,14 @@
+{
+  "safe_ship": 0,
+  "unsafe_ship": 0,
+  "missed_deadline": 30,
+  "invalid_actions": 0,
+  "repaired_actions": 0,
+  "total_budget_spent": 56,
+  "backend": "mlx",
+  "eval_mode": "guided_zero_shot",
+  "load_seconds": 4.37,
+  "generation_seconds": 1783.67,
+  "false_blocks": 3,
+  "true_blocks": 12
+}

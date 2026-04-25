@@ -17,7 +17,7 @@ def ask_worker_logic(worker_id: str, question_type: str, state_proposals: list, 
     p = worker_proposals[0]
     
     if question_type in ["evidence_basis", "risk_summary"]:
-        if getattr(p, "true_violation_id", None):
+        if getattr(p, "latent_violation_id", None) or getattr(p, "true_violation_id", None):
             ans = p.hidden_details
         else:
             ans = rng.choice(ANSWERS_EVIDENCE_SAFE)

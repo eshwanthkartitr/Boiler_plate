@@ -1,0 +1,19 @@
+name: releaseops_arena
+version: 0.1.0
+description: Stateful release-oversight environment where an LLM supervisor manages conflicting specialist-agent proposals under review budget and hard safety rules.
+
+client:
+  class_name: ReleaseOpsEnvClient
+  module: releaseops_arena.client
+
+action:
+  class_name: ReleaseOpsAction
+  module: releaseops_arena.models
+
+observation:
+  class_name: ReleaseOpsObservation
+  module: releaseops_arena.models
+
+default_image: releaseops-arena:latest
+port: 7860
+spec_version: 1
