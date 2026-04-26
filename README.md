@@ -18,7 +18,7 @@ In this project i have replicated different tools , agents which will give us th
 | **GitHub repo** | [https://github.com/eshwanthkartitr/RL](https://github.com/eshwanthkartitr/RL) |
 | **Re-run training / eval (Colab)** | [Open `notebooks/ReleaseOps_final_walkthrough.ipynb` in Colab](https://colab.research.google.com/github/eshwanthkartitr/RL/blob/main/notebooks/ReleaseOps_final_walkthrough.ipynb) |
 | **Short pitch (YouTube Shorts, public — no video files in repo)** | [YouTube: ReleaseOps / project pitch](https://www.youtube.com/shorts/OxfBH7jDOwg) |
-| **Optional: mini-blog on Hugging Face (Model card / Space README / post)** | **TODO — or confirm video alone satisfies the “blog OR video” rule** |
+| **Optional: mini-blog** | [blog.md](blog.md) in this repo (narrative build log: design → 0.6B/GRPO → eval → Space) — video in the table above also satisfies the “blog OR video” rule. |
 | **What judges look for (Google Doc)** | [Organizer rubric / judge notes](https://docs.google.com/document/d/1Odznuzwtb1ecDOm2t6ToZd4MuMXXfO6vWUGcxbC6mFs/edit?tab=t.0#bookmark=kix.2dz0x0nie3me) |
 
 ---

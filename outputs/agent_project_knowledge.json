@@ -1,0 +1,252 @@
+{
+  "schema": "releaseops_agent_context.v1",
+  "title": "ReleaseOps Arena — agent knowledge + evidence (metrics + pitch)",
+  "last_updated": "2026-04-26",
+  "purpose": "One JSON an assistant can load to: cite hard numbers, explain the thesis, know how finetuned vs zero-shot is reproduced, and pitch the project memorably. Training and finetune-inference numbers below come from the author's real Space/GPU runs unless labeled committed_file (repo copy).",
+  "disclaimer": "source_committed_file = copied from a file in the repo. source_production_train_log = real GRPO pilot on the Space/container (path may be /data/outputs/ on machine). source_inference_eval = results from running the trained best_by_loss checkpoint through the same style of eval as evaluate_llm_baseline (n=50). compare_qwen17_eval.sh still optional for a formal zeroshot-vs-finetuned JSON pair in outputs/.",
+  "repository": {
+    "github": "https://github.com/eshwanthkartitr/RL",
+    "huggingface_space": "https://huggingface.co/spaces/hiitsesh/New_gpu_space",
+    "colab_notebook": "https://colab.research.google.com/github/eshwanthkartitr/RL/blob/main/notebooks/ReleaseOps_final_walkthrough.ipynb",
+    "companion_narrative_doc": "blog.md",
+    "eval_artifacts_glob": "outputs/*.json"
+  },
+  "one_line_thesis": "Train a small policy (GRPO) to be the *oversight* layer that decides which specialist AIs to trust in a release crisis—not another bot that does the work.",
+  "bold_pitch_for_agents": {
+    "ten_second_hook": "Everyone is shipping agent armies; almost nobody is training the *governor* that decides when those agents are lying, shortcutting, or about to take production down. ReleaseOps Arena is a verifiable environment where the trainable model is that governor: tools, budgets, real safety rules, and a reward that punishes unsafe ship and false blocks.",
+    "why_its_a_standout_idea": [
+      "The trained role is the **control plane** (approve / block / hold / inspect), not a generic coding agent—so the learned object is *policy under scarcity*, not autocomplete quality.",
+      "Observations and tools are **JSON and fixed schemas**; rewards decompose into safe_ship, unsafe_ship, budget burn, and false_block—**auditable** unlike vibes-only evals.",
+      "You can show **hand-written baselines fail** (naive and plain rules) while a **smaller** RL-tuned Qwen is intended to **beat the same base model zero-shot** on the *same* env (repro script below), paralleling the README story that a compact supervised policy can outrun huge instruction-tuned *general* tool agents on the wrong task."
+    ],
+    "voice_guidance": "Confident, specific, and tied to file paths. When a number is from eval_results.json, say so. When comparing finetuned 1.7B to base 1.7B, say 'run compare_qwen17_eval.sh to refresh' if fresh JSON is not in outputs/.",
+    "taglines_safe_to_use": [
+      "Oversight ML, not task ML.",
+      "Conflicting agents + a budget you cannot spend twice.",
+      "Ship / no-ship is the reward, not pass@1 trivia."
+    ]
+  },
+  "environment_contract": {
+    "openenv_yaml": "openenv.yaml",
+    "core_implementation_files": [
+      "releaseops_arena/tool_env.py",
+      "releaseops_arena/rewards.py",
+      "releaseops_arena/safety_rules.py",
+      "releaseops_arena/baselines.py"
+    ],
+    "phases": ["triage", "deploy_gate", "ship_decision"],
+    "key_metric_definitions": {
+      "safe_ship_rate": "Episodes that ended with terminal_reason safe_ship, divided by count in slice.",
+      "unsafe_ship_rate": "Terminal unsafe_ship (bad release outcome).",
+      "missed_deadline_rate": "Time budget exhausted before resolution.",
+      "avg_false_blocks": "Blocks issued when the underlying rule did not actually fire—wastes trust and is penalized in rewards."
+    }
+  },
+  "training_stack": {
+    "algorithm": "GRPO (Group Relative Policy Optimization) via Hugging Face TRL",
+    "trainer_entrypoint": "training/train_grpo.py",
+    "space_entrypoint": "New_gpu_space/training/train_grpo.py",
+    "default_base_models": {
+      "huggingface_space_pilot": "Qwen/Qwen3-0.6B (fast iteration)",
+      "serious_pilot_and_compare": "Qwen/Qwen3-1.7B (bf16 + 8bit paged Adam + gradient checkpointing on L4-class GPUs)"
+    },
+    "finetuned_artifact": {
+      "typical_hub_model_id": "hiitsesh/releaseops-grpo-1.7b-best",
+      "checkpoint_subfolder": "best_by_loss",
+      "note": "best_by_loss tracks training loss minima, not a separate 'reward best' run unless you add it."
+    },
+    "documented_pilot_narrative": {
+      "source": "README.md Training evidence + images/Training.png, superseded in detail by grpo_pilot_run below",
+      "claims": {
+        "approx_grpo_steps": 100,
+        "reported_final_reward_example": 3.09,
+        "note": "Live pilot hit mean reward 3.092 at step 75 and ~2.735 at step 100 log—see grpo_pilot_run"
+      }
+    }
+  },
+  "grpo_pilot_run": {
+    "source": "production_train_log",
+    "environment": "Hugging Face Space (or equivalent GPU); paths shown as on container (e.g. /data/outputs/)",
+    "model": "Qwen/Qwen3-1.7B",
+    "training": "GRPO with real OpenEnv reward_func (rewards/reward_func in logs)",
+    "max_steps": 100,
+    "outputs_paths": {
+      "metrics_log": "/data/outputs/grpo_env_metrics_pilot.json",
+      "best_by_loss_dir": "/data/outputs/best_by_loss"
+    },
+    "best_loss_checkpoints": [
+      { "step": 5, "loss": 0.057511, "saved_to": "/data/outputs/best_by_loss" },
+      { "step": 15, "loss": -0.199878, "saved_to": "/data/outputs/best_by_loss" }
+    ],
+    "summary_from_trainer": {
+      "train_runtime_seconds": 2134,
+      "train_loss_final": -0.02104,
+      "train_samples_per_second": 0.187,
+      "train_steps_per_second": 0.047,
+      "reward_trend": {
+        "reward_points": 20,
+        "reward_first": 2.332499957084656,
+        "reward_last": 2.734999990463257,
+        "reward_delta": 0.4025000333786011
+      }
+    },
+    "log_milestones": [
+      { "step": 10, "loss": 0.1099, "reward_mean": 1.91, "tools_call_frequency": 1.85, "tools_failure_frequency": 0.4416 },
+      { "step": 20, "loss": -0.03118, "reward_mean": 2.235, "tools_call_frequency": 1.9, "tools_failure_frequency": 0.1067 },
+      { "step": 30, "loss": -0.02206, "reward_mean": 2.35, "tools_call_frequency": 3.0, "tools_failure_frequency": 0.1794 },
+      { "step": 50, "loss": -0.02119, "reward_mean": 2.535, "tools_call_frequency": 1.3, "tools_failure_frequency": 0.06667 },
+      { "step": 60, "loss": -0.02574, "reward_mean": 1.968, "tools_call_frequency": 1.5, "tools_failure_frequency": 0.09 },
+      { "step": 75, "loss": 0.02127, "reward_mean": 3.092, "tools_call_frequency": 2.1, "tools_failure_frequency": 0.3168 },
+      { "step": 100, "loss": -0.007087, "reward_mean": 2.735, "tools_call_frequency": 2.35, "tools_failure_frequency": 0.3744 }
+    ],
+    "interpretation": "100-step GRPO with environment reward; best-by-loss saved early and mid-run. Mid-run tool_failure_frequency drops to ~0.067 at step 50 (strong tool compliance interval). Step 75 mean reward 3.092 matches the README’s ~3.09 training narrative."
+  },
+  "baseline_handed_policy_eval": {
+    "source_file": "outputs/eval_results.json",
+    "description": "Non-LLM baselines (naive, rule, phase_aware_rule) on the same procedural episodes; shows headroom for learning.",
+    "splits": {
+      "seen": { "count": 30, "families": "eval_seen mix from training/data/eval_seen.jsonl" },
+      "unseen": { "count": 20, "families": "include release_manager_ship_before_evidence (held out from train)" },
+      "overall": { "count": 50, "note": "aggregate of the evaluation script merge" }
+    },
+    "overall": {
+      "naive": {
+        "avg_reward": -0.92,
+        "safe_ship_rate": 0.04,
+        "unsafe_ship_rate": 0.96,
+        "missed_deadline_rate": 0.0,
+        "avg_false_blocks": 0.0,
+        "avg_true_blocks": 0.0,
+        "avg_invalid_actions": 0.0,
+        "avg_budget_spent": 0.0
+      },
+      "rule": {
+        "avg_reward": -0.45,
+        "safe_ship_rate": 0.24,
+        "unsafe_ship_rate": 0.72,
+        "missed_deadline_rate": 0.04,
+        "avg_false_blocks": 0.0,
+        "avg_true_blocks": 0.24,
+        "avg_invalid_actions": 0.0,
+        "avg_budget_spent": 1.48
+      },
+      "phase_aware_rule": {
+        "avg_reward": 0.312,
+        "safe_ship_rate": 0.56,
+        "unsafe_ship_rate": 0.32,
+        "missed_deadline_rate": 0.12,
+        "avg_false_blocks": 0.0,
+        "avg_true_blocks": 0.78,
+        "avg_invalid_actions": 0.0,
+        "avg_budget_spent": 0.96
+      }
+    },
+    "unseen_slice_highlight": {
+      "naive": { "safe_ship_rate": 0.0, "unsafe_ship_rate": 1.0, "avg_reward": -1.0 },
+      "rule": { "safe_ship_rate": 0.0, "unsafe_ship_rate": 1.0, "avg_reward": -0.877 },
+      "phase_aware_rule": { "safe_ship_rate": 0.8, "unsafe_ship_rate": 0.0, "avg_reward": 0.83, "missed_deadline_rate": 0.2 }
+    },
+    "derived_comparisons_overall": {
+      "naive_to_phase_aware_rule": {
+        "delta_safe_ship_rate": 0.52,
+        "delta_unsafe_ship_rate": -0.64,
+        "delta_avg_reward": 1.232,
+        "explanation": "Hand-tuned phase-aware rules massively beat naive; RL targets learning a *policy* that generalizes without maintaining if-then trees."
+      },
+      "naive_to_finetuned_inference": {
+        "note": "Uses finetuned_qwen3_inference_eval below (n=50); compared to baseline_handed_policy_eval.overall.naive.",
+        "delta_safe_ship_rate_vs_naive": 0.94,
+        "delta_unsafe_ship_rate_vs_naive": -0.94
+      }
+    }
+  },
+  "finetuned_qwen3_inference_eval": {
+    "source": "inference_eval",
+    "description": "Aggregates from running inference with the GRPO-trained Qwen3-1.7B checkpoint (best_by_loss after the pilot run), same metric names as training/evaluate.py rollouts.",
+    "model": {
+      "base_model_id": "Qwen/Qwen3-1.7B",
+      "training": "GRPO pilot (100 steps) with real env reward; weights from best_by_loss",
+      "hub_artifact": "hiitsesh/releaseops-grpo-1.7b-best",
+      "parameter_class": "Small language model (SLM) — 1.7B class, not a 70B generalist"
+    },
+    "eval": {
+      "episode_count": 50,
+      "aligns_with_baseline_slice": "Same n=50 as outputs/eval_results.json overall.count for side-by-side narrative with hand baselines."
+    },
+    "episode_counts": {
+      "safe_ship": 49,
+      "unsafe_ship": 1,
+      "missed_deadline": 0
+    },
+    "metrics": {
+      "avg_reward": 0.914,
+      "safe_ship_rate": 0.98,
+      "unsafe_ship_rate": 0.02,
+      "missed_deadline_rate": 0.0,
+      "avg_false_blocks": 0.12,
+      "avg_true_blocks": 0.46,
+      "avg_invalid_actions": 0.0,
+      "avg_budget_spent": 1.14
+    },
+    "consistency": {
+      "safe_ship_rate_plus_unsafe_ship_rate": 1.0,
+      "implied_false_block_events": 6,
+      "implied_true_block_events": 23
+    },
+    "how_agents_should_cite": "Cite as: finetuned Qwen3-1.7B after GRPO, n=50 inference eval (see finetuned_qwen3_inference_eval in agent_project_knowledge.json). For scripted JSON on disk, optionally also save outputs/eval_finetuned_rl.json via compare_qwen17_eval.sh or evaluate_llm_baseline.py --output-json."
+  },
+  "llm_baseline_runs_in_repo": {
+    "outputs/llm_baseline_metrics_small.json": {
+      "backend": "mlx",
+      "eval_mode": "guided_zero_shot",
+      "note": "Single snapshot; not a full benchmark grid—use for sanity, not as final Kaggle score."
+    },
+    "outputs/llm_baseline_metrics_limit30.json": {
+      "caveat": "Includes many missed_deadline in a long mlx run; treat as 'stress sample' and prefer fresh torch eval on a fixed limit after hardware stabilizes."
+    }
+  },
+  "finetuned_vs_base_1_7b": {
+    "status": "optional_extra_json_pair",
+    "why_zeroshot_compare_matters": "Same architecture (Qwen3-1.7B), two checkpoints: (1) base weights zero-shot, (2) GRPO-finetuned releaseops policy—the finetuned inference numbers in this file are already from the trained checkpoint; running the script below adds an apples-to-apples JSON file for base model on the same harness.",
+    "reproduction": {
+      "script": "compare_qwen17_eval.sh",
+      "from_repo_root": "bash compare_qwen17_eval.sh",
+      "output_paths_expected": [
+        "outputs/eval_zeroshot_qwen1.7b.json",
+        "outputs/eval_finetuned_rl.json"
+      ],
+      "env_var_MODE_hub": "MODE=hub hf download to avoid local 6.9GB if disk tight",
+      "space_http_mirror": "POST /api/run-eval and GET /api/get-eval-results on the Space (see New_gpu_space/releaseops_arena/eval_api.py) for a hosted eval of the finetuned Hub default."
+    }
+  },
+  "grpo_smoke_log_summary": {
+    "source": "outputs/grpo_smoke_metrics.json",
+    "note": "This smoke used compatibility reward path in the logged rows (rewards/compatibility_reward_func); for submission-grade claims use full OpenEnv GRPO with environment_factory in TRL.",
+    "last_log_step": 6,
+    "train_loss_last": 0.10538927714029948
+  },
+  "rest_api_for_training": {
+    "discovery": "GET / on the Space returns JSON with every /train and /outputs route",
+    "key_routes": [
+      "/train/pilot?model_name=Qwen%2FQwen3-1.7B&bf16=true&...",
+      "/train/summary",
+      "/outputs/archive?path=best_by_loss"
+    ],
+    "runbook": "New_gpu_space/SPACE_RUNBOOK.md"
+  },
+  "agent_workflow": {
+    "to_pitch_this_project": [
+      "Read bold_pitch_for_agents and one_line_thesis.",
+      "Cite baseline_handed_policy_eval for hand-tuned baselines (from eval_results.json).",
+      "Cite grpo_pilot_run for the real 100-step GRPO training record (reward 3.092 at step 75, best-loss checkpoints, final reward trend).",
+      "Cite finetuned_qwen3_inference_eval for post-train inference aggregates (e.g. 0.98 safe_ship on n=50).",
+      "Optional: run compare_qwen17_eval.sh to add eval_zeroshot_qwen1.7b.json alongside a file copy of finetuned metrics.",
+      "Link blog.md for the full technical monograph."
+    ],
+    "integrity": [
+      "finetuned_qwen3_inference_eval is episode-level policy eval, not the same object as baseline_handed_policy_eval (those are scripted non-LLM policies).",
+      "grpo_smoke_log_summary refers to a different local smoke path; do not mix with grpo_pilot_run Space metrics.",
+      "Do not use old compatibility-reward-only smoke logs as proof of environment reward."
+    ]
+  }
+}
