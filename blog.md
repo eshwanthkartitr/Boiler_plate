@@ -79,7 +79,7 @@ Source of truth: [releaseops_arena/rewards.py](releaseops_arena/rewards.py) `REW
 | `false_block` | −0.15 | Blocked when rule did not actually apply. |
 | `inspection_revealed_true_violation` | +0.2 | Incentivize **useful** evidence gathering. |
 
-GRPO **reads the scalar `env.reward`** at the end of each environment turn via `reward_func` (list comprehension over env instances) in `train_grpo.py` — the reward is **not** human preference labels; it is **this** simulator’s economics.
+GRPO **reads the scalar `env.reward`** at the end of each environment turn via `reward_func` (list comprehension over env instances) in `train_grpo.py` — the reward is **not** human preference labels; it is the **ReleaseOps** environment’s own reward (rules + budget + ship outcomes), fixed by code in `rewards.py`.
 
 **Compatibility mode (only for broken/old TRL):** if `GRPOTrainer` has **no** `environment_factory`, training can fall back to `compatibility_reward_func`, which heuristically scores **text** for tool-name substrings. That path is **not** a valid substitute for true env RL; the trainer will **refuse** to start unless you pass `--allow-compatibility-reward` (see error message in [training/train_grpo.py](training/train_grpo.py) `main()`). **For judges: require TRL with OpenEnv GRPO + `environment_factory`.**
 
@@ -189,7 +189,7 @@ Before spawn, the server sets (see [server.py](New_gpu_space/releaseops_arena/se
 - `TORCH_COMPILE_DISABLE=1` — avoids dynamo/inductor duplicate registration issues on some images.
 - `TORCHINDUCTOR_CACHE_DIR`, `TRITON_CACHE_DIR` under writable `outputs/`.
 - `HF_HOME`, `HUGGINGFACE_HUB_CACHE`, `HF_DATASETS_CACHE`, `TRANSFORMERS_CACHE`, `XDG_CACHE_HOME` — avoid **`/.cache`** and **`PermissionError`** when `HOME` is `/` or empty.
-- If `HOME` is bad, set a synthetic home under the HF root — fixes `getpass` / `getpwuid` failures for torch/inductor.
+- If `HOME` is bad, set an explicit **writable** `HOME` under the cache root — fixes `getpass` / `getpwuid` failures for torch/inductor.
 
 ### Artifact endpoints (runtime, not git “Files”)
 
@@ -234,7 +234,7 @@ Before spawn, the server sets (see [server.py](New_gpu_space/releaseops_arena/se
 |------|----------------|
 | **OpenEnv** | A pattern/spec for *tool-using* RL envs with a discoverable `openenv.yaml` and pip `openenv-core`. |
 | **GRPO** | Group Relative Policy Optimization (TRL) — the RL algorithm in use. |
-| **Supervisor** | The only trainable policy; workers are simulated. |
+| **Supervisor** | The only trainable policy; specialist workers are **env-controlled** (scripted roles), not separate learned agents. |
 | **Family** | A procedural *class* of release scenarios. |
 | **Archetype mix** | Which worker personas dominate (e.g. shortcut vs careful). |
 | **evidence_actions_remaining** | Hard cap on how many **inspect/ask** tools can be used before the model must **approve / block / hold**. |
