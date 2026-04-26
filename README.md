@@ -38,20 +38,22 @@ To prove the SLM can learn the organizational policy without exhaustive searchin
 
 ## 💻 Getting Started / Installation
 
-ReleaseOps Arena is built on standard OpenEnv mechanics. You can connect to the live environment or run it locally.
+ReleaseOps Arena is built on standard OpenEnv mechanics. You can use the **hosted** Space over HTTPS, or run a **local** copy with Docker. Those are two options—not two steps for the same thing.
 
 **1. Install OpenEnv Core**
 ```bash
 pip install openenv-core
 ```
 
-**2. Connect to the Live HF Space (HTTP; sync `requests` client)**
+**2. Call the live Space (no Docker required)**  
+Use the public `https://…hf.space` app URL. That hits the same server HF already runs; you do **not** need `docker run` for this (install deps with `pip install -r requirements.txt` in your project, not a container).
+
 ```python
 from releaseops_arena.client import ReleaseOpsEnvClient
 from releaseops_arena.models import ReleaseOpsAction
 
-# App URL: use the …hf.space host (not the huggingface.co/spaces/… page URL)
-BASE = "https://hiitsesh-new-gpu-space.hf.space"  # or your Space’s *.hf.space URL
+# Not the huggingface.co/spaces/… *page* URL — use the *.hf.space host
+BASE = "https://hiitsesh-new-gpu-space.hf.space"
 client = ReleaseOpsEnvClient(BASE)
 obs = client.reset()
 print(obs.model_dump() if hasattr(obs, "model_dump") else obs.dict())
@@ -60,7 +62,17 @@ print(obs.model_dump() if hasattr(obs, "model_dump") else obs.dict())
 
 Open **`/docs`** on the same `BASE` for interactive API details.
 
-**3. Run Locally via Docker**
+**3. Run the same API locally (optional Docker)**  
+Only if you want the container on your machine: pull the **Space** image from Hugging Face’s registry and map **7860** (see `Dockerfile` / `PORT`). Then point the client at `http://127.0.0.1:7860`. Copy the exact `docker pull` / image name from your Space: **Settings → Add space to Docker Desktop** (or the registry snippet on the Space repo).
+
 ```bash
-docker run -d -p 8000:8000 registry.hf.space/[YOUR_USERNAME]/[YOUR_SPACE_NAME]:latest
+# Example — use the image reference from the Space (Settings / Docker). Port 7860 matches this repo’s Dockerfile.
+docker run -d -p 7860:7860 -e PORT=7860 registry.hf.space/<org-or-user>/<space-name>:latest
 ```
+
+```python
+# After docker run, use local base:
+BASE = "http://127.0.0.1:7860"
+```
+
+If the registry path 404s, use HF’s UI for the authoritative name (namespace and slug differ from the `*.hf.space` hostname in subtle ways).
