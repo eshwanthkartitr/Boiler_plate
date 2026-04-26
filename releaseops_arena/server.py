@@ -11,6 +11,9 @@ SUPPORTS_CONCURRENT_SESSIONS: bool = True
 MAX_CONCURRENT_ENVS = int(os.getenv("MAX_CONCURRENT_ENVS", "64"))
 
 app = FastAPI(title="ReleaseOps Arena Env")
+from releaseops_arena.eval_api import router as eval_router
+app.include_router(eval_router, prefix="/api")
+
 
 _env_sessions: dict[str, ReleaseOpsToolEnv] = {}
 _env_lock = threading.Lock()
